@@ -25,7 +25,7 @@ void init() {
     }
 
     {
-        std::string script = "error('it this thing on?')";
+        std::string script = "print('it this thing on?')";
         // std::string script =
         //     "game.Players.LocalPlayer.Character.WalkSpeed = 40";
         jobs::queueScript(script);
