@@ -77,7 +77,7 @@ bool setup() {
         gamevalues::game_values);
     puts("[spiral] second pass finished.");
 
-    if (pattern_fails != 0 || hook_fails) {
+    if (pattern_fails != 0 || hook_fails != 0) {
         printf(
             "[spiral] %d patterns had no match and %d functions failed to "
             "hook. quitting...\n",
