@@ -13,9 +13,6 @@
 
 namespace spiral::logging {
 
-static char *ALLOCATION_FAIL_PTR =
-    const_cast<char *>("[FAILED TO ALLOCATE LOG BUFFER]");
-
 void print(const std::string &content) {
     fprintf(stdout, "[spiral] ");
     fwrite(content.c_str(), content.size(), 1, stdout);
@@ -24,7 +21,7 @@ void print(const std::string &content) {
     if (buffer)
         memcpy(buffer, content.data(), content.size());
     else
-        buffer = ALLOCATION_FAIL_PTR;
+        return;
 
     log_list.push_back({.content = buffer, .len = content.size()});
     return;
@@ -32,7 +29,7 @@ void print(const std::string &content) {
 
 void cleanup() {
     for (const auto &log : log_list)
-        if (log.content != ALLOCATION_FAIL_PTR) free(log.content);
+        free(log.content);
 }
 
 }  // namespace spiral::logging

@@ -42,12 +42,13 @@ bool setup() {
 
                     using T = std::decay_t<decltype(items.value)>;
 
+                    items.value = reinterpret_cast<T>(value);
+
                     if (items.hook) {
                         items.detour = std::make_unique<PLH::NatDetour>(
                             value, reinterpret_cast<uintptr_t>(items.hook),
                             reinterpret_cast<uint64_t *>(&items.trampoline));
                     } else {
-                        items.value = reinterpret_cast<T>(value);
                         // TODO: maybe rename trampoline?
                         items.trampoline = items.value;
                     }
@@ -64,6 +65,11 @@ bool setup() {
             (
                 [&]() {
                     if (items.hook) {
+                        if (!items.value) {
+                            printf("[spiral]   skipping %s since we failed to find it.\n", items.name);
+                            return;
+                        }
+
                         printf("[spiral]   hooking %s...\n", items.name);
                         if (!items.detour->hook()) {
                             puts("[spiral]    > failed to hook.");

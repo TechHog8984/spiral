@@ -16,6 +16,8 @@
 
 namespace spiral {
 
+void cleanup();
+
 void init() {
     puts("[spiral] initialization started.");
 
@@ -32,17 +34,26 @@ void init() {
     jobs::startPipe();
 
     puts("[spiral] reading application...");
-    if (!application::readApplication()) return;
+    if (!application::readApplication()) goto CLEANUP;
 
     puts("[spiral] reading and hooking game values...");
-    if (!gamevalues::setup()) return;
+    if (!gamevalues::setup()) goto CLEANUP;
 
     puts("[spiral] initialization finished.");
+
+    return;
+
+CLEANUP:
+    cleanup();
 }
 
 __attribute((constructor)) void __entry() { std::thread(init).detach(); }
 
-__attribute((destructor)) void __cleanup() {
+void cleanup() {
+    static bool cleanup_ran = false;
+    if (cleanup_ran) return;
+    cleanup_ran = true;
+
     puts("[spiral] cleaning up...");
 
     std::apply(
@@ -61,5 +72,7 @@ __attribute((destructor)) void __cleanup() {
 
     puts("[spiral] clean up finished.");
 }
+
+__attribute((destructor)) void __cleanup() { cleanup(); }
 
 }  // namespace spiral

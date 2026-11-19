@@ -17,6 +17,7 @@ extern uint8_t *game_state;
 extern uint8_t *spiral_state;
 
 void initializeState(uint8_t *game_state_in);
+void onGameStateClose();
 void runCode(const std::string &code);
 
 }  // namespace spiral::execution

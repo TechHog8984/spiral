@@ -20,16 +20,10 @@ uint8_t *game_state = nullptr;
 uint8_t *spiral_state = nullptr;
 
 void initializeState(uint8_t *game_state_in) {
-    puts("[spiral::execution.initializeState] initializing...");
+    // don't initialize if there's an active game state still
+    if (game_state) return;
 
-    if (game_state) {
-        puts("[spiral::execution.initializeState] cleaning old state...");
-        // TODO: cleanup old state
-        // there isn't anything to do rn because all we'd do is unref but the
-        // state is (if Vortex is doing things right which I imagine they are)
-        // being closed anyway
-        puts("[spiral::execution.initializeState] finished cleaning.");
-    }
+    puts("[spiral::execution.initializeState] initializing...");
 
     game_state = game_state_in;
 
@@ -57,6 +51,14 @@ void initializeState(uint8_t *game_state_in) {
     environment::apply(spiral_state);
 
     puts("[spiral::execution.initializeState] initialization finished.");
+}
+
+void onGameStateClose() {
+    // TODO: cleanup old state
+    // there isn't anything to do rn because all we'd do is unref but the
+    // state is (if Vortex is doing things right which I imagine they are)
+    // being closed anyway
+    game_state = nullptr;
 }
 
 void runCode(const std::string &code) {

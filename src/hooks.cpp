@@ -16,8 +16,7 @@
 namespace spiral::hooks {
 
 bool rawlua_new_called = false;
-bool started_manual_init = false;
-bool rawlua_new_should_trigger_reinit = true;
+bool done_manual_init = false;
 
 void hooked_luau_execute(uint8_t *L) {
     /*
@@ -28,8 +27,8 @@ void hooked_luau_execute(uint8_t *L) {
         NOTE: it has now occured to me after running this that I don't
         think we will be able to inject into the game while it is running :(
     */
-    if (!rawlua_new_called && !started_manual_init) {
-        started_manual_init = true;
+    if (!rawlua_new_called && !done_manual_init) {
+        done_manual_init = true;
         jobs::queueInitializeState();
     }
 
@@ -83,14 +82,20 @@ void hooked_luau_execute(uint8_t *L) {
     gamevalues::luau_execute.trampoline(L);
 }
 
+void hooked_lua_close(uint8_t *L) {
+    uint8_t *main = gamevalues::lua_mainthread.trampoline(L);
+    if (execution::game_state && main == execution::game_state)
+        execution::onGameStateClose();
+
+    gamevalues::lua_close.trampoline(L);
+}
+
 int64_t *hooked_RawLua__new(void) {
     rawlua_new_called = true;
 
     auto result = gamevalues::RawLua__new.trampoline();
 
-    if (rawlua_new_should_trigger_reinit) jobs::queueInitializeState();
-
-    rawlua_new_should_trigger_reinit = !rawlua_new_should_trigger_reinit;
+    jobs::queueInitializeState();
 
     return result;
 }

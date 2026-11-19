@@ -8,6 +8,8 @@
 
 #pragma once
 
+// GAME VERSION: 0.9.6
+
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -99,6 +101,16 @@ inline GameValue<lua_newthread_t> lua_newthread{
         "39 48 48 ?? ?? f6 45 01 04",
     // 73 54 (v0.9.6)
     .has_pattern = true};
+typedef void (*lua_close_t)(uint8_t *L);
+inline GameValue<lua_close_t> lua_close{
+    /*
+        see
+    */
+    .name = "lua_close",
+    .pattern =
+        "f3 0f 1e fa 55 48 8b 47 18 48 8b a8 f8 0a 00 00 48 8b 75 30 48 89 ef",
+    .has_pattern = true,
+    .hook = hooks::hooked_lua_close};
 typedef const char *(*lua_tolstring_t)(uint8_t *L, int idx, size_t *len);
 inline GameValue<lua_tolstring_t> lua_tolstring{
     /* find lua_exception::what from "lua_exception: not enough memory" string,
@@ -423,6 +435,8 @@ inline GameValue<RawLua__new_t> RawLua__new{
     /*
         find close_state from luaM_free_ calls
         then lua_newstate from close_state calls
+            there are two calls. the bigger function is lua_newstate
+            and the smaller is lua_close
         then RawLua::new from lua_newstate calls
     */
     .name = "RawLua::new",
@@ -431,7 +445,7 @@ inline GameValue<RawLua__new_t> RawLua__new{
 
 inline auto game_values = std::tie(
     luau_load, luau_compile, luau_execute, lua_mainthread, lua_newthread,
-    lua_tolstring, luaL_tolstring, lua_settop, lua_gettop, lua_pcall,
+    lua_close, lua_tolstring, luaL_tolstring, lua_settop, lua_gettop, lua_pcall,
     lua_pushvalue, lua_pushcclosurek, lua_pushlstring, lua_createtable,
     lua_rawsetfield, lua_rawseti, lua_rawget, lua_getfield, lua_setreadonly,
     lua_setmetatable, lua_replace, lua_setsafeenv, lua_objlen, lua_type,
