@@ -17,11 +17,14 @@ namespace spiral::jobs {
 struct Job {
     enum { InitializeState, ExecuteScript } tag;
 
-    std::variant<std::monostate, std::string> value;
+    std::variant<std::monostate, int, std::string> value;
 };
 
 void queueJob(const Job &job);
+
 void queueScript(const std::string &script);
+void queueInitializeState();
+
 void swapJobQueue(std::queue<Job> &local_queue);
 
 void startPipe();

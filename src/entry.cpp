@@ -19,17 +19,9 @@ namespace spiral {
 void init() {
     puts("[spiral] initialization started.");
 
-    // FIXME: handle leaving and joining a new game (don't forget to clean old
-    // state)
-    {
-        jobs::Job job{.tag = jobs::Job::InitializeState};
-        jobs::queueJob(job);
-    }
-
     {
         std::string script =
-            "print('it this thing on?', type(game), if game then "
-            "type(game.Players) else 'nil')";
+            "print('it this thing on?', 'type(game)=' .. type(game), 'type(game.Players)=' .. (if game then type(game.Players) else 'nil'))";
         // std::string script =
         //     "game.Players.LocalPlayer.Character.WalkSpeed = 40";
         jobs::queueScript(script);

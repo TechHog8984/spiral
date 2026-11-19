@@ -13,7 +13,7 @@
 
 namespace spiral::logging {
 
-char *ALLOCATION_FAIL_PTR =
+static char *ALLOCATION_FAIL_PTR =
     const_cast<char *>("[FAILED TO ALLOCATE LOG BUFFER]");
 
 void print(const std::string &content) {

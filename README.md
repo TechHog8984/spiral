@@ -12,10 +12,14 @@ write script content to /tmp/spiral/pipe:
 ```bash
 echo 'print(game.Players.LocalPlayer.Name)' > /tmp/spiral/pipe
 ```
+```bash
+echo 'game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 48' > /tmp/spiral/pipe
+```
 
 ## why is it crappy?
 * linux only
 * it needs scripts running in the game
-* if you try to execute a script after leaving a game and joining a new one, it crashes
 * no custom functions
 * no ui
+* most functions are found with pattern matching at runtime which is slow
+* (fixed, yay!) ~~if you try to execute a script after leaving a game and joining a new one, it crashes~~

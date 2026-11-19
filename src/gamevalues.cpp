@@ -79,8 +79,7 @@ bool setup() {
 
     if (pattern_fails != 0 || hook_fails != 0) {
         printf(
-            "[spiral] %d patterns had no match and %d functions failed to "
-            "hook. quitting...\n",
+            "[spiral] %d patterns had no match and %d functions failed to hook. quitting...\n",
             pattern_fails, hook_fails);
         return false;
     }

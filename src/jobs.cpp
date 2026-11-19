@@ -26,9 +26,14 @@ void queueJob(const Job &job) {
     std::lock_guard<std::mutex> lock(job_queue_mutex);
     job_queue.push(job);
 }
+
 void queueScript(const std::string &script) {
     Job job{.tag = Job::ExecuteScript, .value = script};
     queueJob(job);
+}
+void queueInitializeState() {
+    jobs::Job job{.tag = jobs::Job::InitializeState, .value = static_cast<int>(0)};
+    jobs::queueJob(job);
 }
 
 void swapJobQueue(std::queue<Job> &local_queue) {

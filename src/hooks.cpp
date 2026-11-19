@@ -6,6 +6,8 @@
     See the GPLv3 LICENSE file.
 */
 
+#include <cstdint>
+
 #include "execution.hpp"
 #include "gamevalues.hpp"
 #include "jobs.hpp"
@@ -13,8 +15,26 @@
 
 namespace spiral::hooks {
 
+bool rawlua_new_called = false;
+bool started_manual_init = false;
+bool rawlua_new_should_trigger_reinit = true;
+
 void hooked_luau_execute(uint8_t *L) {
+    /*
+        if luau_execute has been called BEFORE RawLua::new, then we injected
+        into the game after a state has already been created,
+        so we need to queue an initialiation job manually.
+
+        NOTE: it has now occured to me after running this that I don't
+        think we will be able to inject into the game while it is running :(
+    */
+    if (!rawlua_new_called && !started_manual_init) {
+        started_manual_init = true;
+        jobs::queueInitializeState();
+    }
+
     static bool anti_recursion = false;
+
     if (!anti_recursion) {
         anti_recursion = true;
 
@@ -31,15 +51,17 @@ void hooked_luau_execute(uint8_t *L) {
                     int game_type = gamevalues::lua_type.trampoline(L, -1);
                     gamevalues::lua_settop.trampoline(L, -2);
 
-                    /*
-                        wait for game to be set
-                        TODO: is game set from a lua script? are we still
-                         executing that same script?
-                    */
-                    if (game_type != LUA_TTABLE)
-                        jobs::queueJob(job);
-                    else
-                        execution::initializeState(L);
+                    // wait for game to be set
+                    if (game_type != LUA_TTABLE) {
+                        auto &attempts = std::get<int>(job.value);
+                        if (++attempts > 5000)
+                            puts(
+                                "[spiral] Did you inject into the Vortex after a game launch? Spiral doesn't support that, so please rejoin your game.");
+                        else
+                            jobs::queueJob(job);
+                    } else
+                        execution::initializeState(
+                            gamevalues::lua_mainthread.trampoline(L));
                     break;
                 }
                 case jobs::Job::ExecuteScript:
@@ -59,6 +81,18 @@ void hooked_luau_execute(uint8_t *L) {
     }
 
     gamevalues::luau_execute.trampoline(L);
+}
+
+int64_t *hooked_RawLua__new(void) {
+    rawlua_new_called = true;
+
+    auto result = gamevalues::RawLua__new.trampoline();
+
+    if (rawlua_new_should_trigger_reinit) jobs::queueInitializeState();
+
+    rawlua_new_should_trigger_reinit = !rawlua_new_should_trigger_reinit;
+
+    return result;
 }
 
 }  // namespace spiral::hooks

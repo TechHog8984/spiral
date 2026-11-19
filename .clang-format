@@ -6,3 +6,4 @@ DerivePointerAlignment: false
 PointerAlignment: Right
 FixNamespaceComments: true
 ShortNamespaceLines: 0
+BreakStringLiterals: false

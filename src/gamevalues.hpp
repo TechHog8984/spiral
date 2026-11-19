@@ -82,15 +82,11 @@ inline GameValue<luau_execute_t> luau_execute{
 typedef uint8_t *(*lua_mainthread_t)(uint8_t *L);
 inline GameValue<lua_mainthread_t> lua_mainthread{
     /*
-        lua_mainthread pattern (NOT START OF FUNCTION):
-            48 8b 47 18 48 8b 80 f8 0a 00
-        (v0.9.6)
+        the pattern should be good enouigh
+        otherwise just look above lua_absindex which is above lua_gettop
     */
     .name = "lua_mainthread",
-    .pattern =
-        "f3 0f 1e fa 8d 96 0f 4a 0f 00 89 f0 81 fa 0f 4a 0f 00 ?? ?? 48 8b 57 "
-        "08 48 2b 57 10 48 c1 fa 04",
-    // 77 10 (v0.9.6)
+    .pattern = "f3 0f 1e fa 48 8b 47 18 48 8b 80 f8 0a",
     .has_pattern = true};
 typedef uint8_t *(*lua_newthread_t)(uint8_t *L);
 inline GameValue<lua_newthread_t> lua_newthread{
@@ -422,13 +418,24 @@ inline GameValue<lua_CFunction> luaB_print{
         "8b 04 25 28 00 00 00 48 89 44 24 18 31 c0",
     .has_pattern = true};
 
+typedef int64_t *(*RawLua__new_t)(void);
+inline GameValue<RawLua__new_t> RawLua__new{
+    /*
+        find close_state from luaM_free_ calls
+        then lua_newstate from close_state calls
+        then RawLua::new from lua_newstate calls
+    */
+    .name = "RawLua::new",
+    .offset = 0x57fabf0,
+    .hook = hooks::hooked_RawLua__new};
+
 inline auto game_values = std::tie(
     luau_load, luau_compile, luau_execute, lua_mainthread, lua_newthread,
     lua_tolstring, luaL_tolstring, lua_settop, lua_gettop, lua_pcall,
     lua_pushvalue, lua_pushcclosurek, lua_pushlstring, lua_createtable,
     lua_rawsetfield, lua_rawseti, lua_rawget, lua_getfield, lua_setreadonly,
     lua_setmetatable, lua_replace, lua_setsafeenv, lua_objlen, lua_type,
-    luaA_toobject, luaB_print);
+    luaA_toobject, luaB_print, RawLua__new);
 
 bool setup();
 

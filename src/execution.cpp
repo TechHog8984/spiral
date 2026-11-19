@@ -23,8 +23,12 @@ void initializeState(uint8_t *game_state_in) {
     puts("[spiral::execution.initializeState] initializing...");
 
     if (game_state) {
+        puts("[spiral::execution.initializeState] cleaning old state...");
         // TODO: cleanup old state
-        __builtin_trap();
+        // there isn't anything to do rn because all we'd do is unref but the
+        // state is (if Vortex is doing things right which I imagine they are)
+        // being closed anyway
+        puts("[spiral::execution.initializeState] finished cleaning.");
     }
 
     game_state = game_state_in;
@@ -34,8 +38,7 @@ void initializeState(uint8_t *game_state_in) {
     gamevalues::lua_settop.trampoline(game_state, -2);
 
     printf(
-        "[spiral::execution.initializeState] main state: %p, spiral state: "
-        "%p\n",
+        "[spiral::execution.initializeState] main state: %p, spiral state: %p\n",
         game_state, spiral_state);
 
     // luaL_sandboxthread
