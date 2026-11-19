@@ -29,6 +29,7 @@ set(SOURCES
   src/gamevalues.cpp
   src/hooks.cpp
   src/jobs.cpp
+  src/logging.cpp
   src/lua.cpp
 
   src/entry.cpp

@@ -12,20 +12,24 @@
 #include "application.hpp"
 #include "gamevalues.hpp"
 #include "jobs.hpp"
+#include "logging.hpp"
 
 namespace spiral {
 
 void init() {
     puts("[spiral] initialization started.");
 
-    // FIXME: handle leaving and joining a new game (don't forget to clean old state)
+    // FIXME: handle leaving and joining a new game (don't forget to clean old
+    // state)
     {
         jobs::Job job{.tag = jobs::Job::InitializeState};
         jobs::queueJob(job);
     }
 
     {
-        std::string script = "print('it this thing on?')";
+        std::string script =
+            "print('it this thing on?', type(game), if game then "
+            "type(game.Players) else 'nil')";
         // std::string script =
         //     "game.Players.LocalPlayer.Character.WalkSpeed = 40";
         jobs::queueScript(script);
@@ -60,6 +64,8 @@ __attribute((destructor)) void __cleanup() {
         gamevalues::game_values);
 
     jobs::stopPipe();
+
+    logging::cleanup();
 
     puts("[spiral] clean up finished.");
 }

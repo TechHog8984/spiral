@@ -20,8 +20,31 @@
 typedef int (*lua_CFunction)(uint8_t *L);
 typedef int (*lua_Continuation)(uint8_t *L, int status);
 
+enum lua_Type {
+    LUA_TNIL,
+    LUA_TBOOLEAN,
+
+    LUA_TLIGHTUSERDATA,
+    LUA_TNUMBER,
+    LUA_TVECTOR,
+
+    LUA_TSTRING,
+
+    LUA_TTABLE,
+    LUA_TFUNCTION,
+    LUA_TUSERDATA,
+    LUA_TTHREAD,
+    LUA_TBUFFER,
+
+    LUA_TPROTO,
+    LUA_TUPVAL,
+    LUA_TDEADKEY,
+};
+
 namespace spiral::lua {
 
 int lua_ref(uint8_t *L, int idx);
+// NOTE: doesn't push nil
+void lua_pushstring(uint8_t *L, const char *str);
 
 }  // namespace spiral::lua

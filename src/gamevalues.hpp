@@ -215,6 +215,16 @@ inline GameValue<lua_pushcclosurek_t> lua_pushcclosurek{
         "f3 0f 1e fa 41 56 49 89 f6 41 55 4d 89 c5 41 54 49 89 d4 55 48 89 fd "
         "53 48 8b 47 18 89 cb 48 8b 78 40 48 39 78 48 0f 83 94 00 00 00 f6 45",
     .has_pattern = true};
+typedef void (*lua_pushlstring_t)(uint8_t *L, const char *s, size_t len);
+inline GameValue<lua_pushlstring_t> lua_pushlstring{
+    /*
+        see lua_createtable
+    */
+    .name = "lua_pushlstring",
+    .pattern =
+        "f3 0f 1e fa 41 55 41 54 49 89 d4 55 48 89 f5 53 48 89 fb 48 83 ec 08 "
+        "48 8b 47 18 48 8b 48 40 48 39 48 48 73 3b f6 43 01",
+    .has_pattern = true};
 typedef void (*lua_createtable_t)(uint8_t *L, int narray, int nrec);
 inline GameValue<lua_createtable_t> lua_createtable{
     /*
@@ -272,6 +282,26 @@ inline GameValue<lua_rawseti_t> lua_rawseti{
     .pattern =
         "f3 0f 1e fa 41 54 55 48 89 fd 53 48 83 ec 10 85 f6 7e 7d 48 8b 47 10 "
         "48 63",
+    .has_pattern = true};
+typedef int (*lua_rawget_t)(uint8_t *L, int idx);
+inline GameValue<lua_rawget_t> lua_rawget{
+    /*
+        see lua_createtable
+    */
+    .name = "lua_rawget",
+    .pattern =
+        "f3 0f 1e fa 55 48 63 ee 53 48 89 fb 48 83 ec 08 f6 47 01 04 75 6a 85 "
+        "ed 7e 46 48 8b 43 10 48 c1 e5 04 48 8b 73",
+    .has_pattern = true};
+typedef int (*lua_getfield_t)(uint8_t *L, int idx, const char *k);
+inline GameValue<lua_getfield_t> lua_getfield{
+    /*
+        see lua_createtable
+    */
+    .name = "lua_getfield",
+    .pattern =
+        "f3 0f 1e fa 41 54 49 89 d4 55 48 63 ee 53 48 89 fb 48 83 ec 20 64 48 "
+        "8b 04 25 28 00 00 00 48 89 44 24 18 31 c0 f6 47 01",
     .has_pattern = true};
 typedef void (*lua_setreadonly_t)(uint8_t *L, int objindex, int enabled);
 inline GameValue<lua_setreadonly_t> lua_setreadonly{
@@ -350,13 +380,55 @@ inline GameValue<lua_objlen_t> lua_objlen{
         "f3 0f 1e fa 85 f6 7e 58 48 8b 47 10 48 63 f6 48 c1 e6 04 48 8d 44 30 "
         "f0 48 3b 47 08 72 07 48 8d",
     .has_pattern = true};
+typedef int (*lua_type_t)(uint8_t *L, int idx);
+inline GameValue<lua_type_t> lua_type{/*
+                                          see lua_createtable
+                                      */
+                                      .name = "lua_type",
+                                      .offset = 0x6a3d0d0};
 
-inline auto game_values =
-    std::tie(luau_load, luau_compile, luau_execute, lua_mainthread,
-             lua_newthread, lua_tolstring, luaL_tolstring, lua_settop,
-             lua_gettop, lua_pcall, lua_pushvalue, lua_pushcclosurek,
-             lua_createtable, lua_rawsetfield, lua_rawseti, lua_setreadonly,
-             lua_setmetatable, lua_replace, lua_setsafeenv, lua_objlen);
+typedef char *(*luaA_toobject_t)(uint8_t *L, int idx);
+inline GameValue<luaA_toobject_t> luaA_toobject{
+    /* "invalid argument #%d to '%s' (%s expected, got %s)" string
+        leads you to luaL_typerrorL:
+
+        void luaL_typeerrorL(char* arg1, int32_t arg2)
+        {
+            char* rax = sub_6a1c800(arg1);
+            void** rax_1 = luaA_toobject(arg1, arg2);
+            //             ^^ luaA_toobject HERE
+
+            ...
+
+            sub_6a2eab0(arg1, rax_1);
+            luaL_errorL(arg1,
+                "invalid argument #%d to '%s' (%s expected, got %s)", 0);
+            }
+    */
+    .name = "luaA_toobject",
+    .offset = 0x6a3c960};
+
+inline GameValue<lua_CFunction> luaB_print{
+    /*
+        just find base_funcs by searching for "print", "newproxy", etc:
+
+        char const (* data_6dc1350)[0x6] = data_a8b034 {"print"}
+        void* data_6dc1358 = luaB_print
+        //                   ^^ luaB_print HERE
+    */
+    .name = "luaB_print",
+    .pattern =
+        "f3 0f 1e fa 41 57 41 56 41 55 41 54 55 48 89 fd 53 48 83 ec 28 64 48 "
+        "8b 04 25 28 00 00 00 48 89 44 24 18 31 c0",
+    .has_pattern = true};
+
+inline auto game_values = std::tie(
+    luau_load, luau_compile, luau_execute, lua_mainthread, lua_newthread,
+    lua_tolstring, luaL_tolstring, lua_settop, lua_gettop, lua_pcall,
+    lua_pushvalue, lua_pushcclosurek, lua_pushlstring, lua_createtable,
+    lua_rawsetfield, lua_rawseti, lua_rawget, lua_getfield, lua_setreadonly,
+    lua_setmetatable, lua_replace, lua_setsafeenv, lua_objlen, lua_type,
+    luaA_toobject, luaB_print);
 
 bool setup();
 

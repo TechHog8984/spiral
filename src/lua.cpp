@@ -33,5 +33,8 @@ int lua_ref(uint8_t *L, int idx) {
 
     return ref;
 }
+void lua_pushstring(uint8_t *L, const char *str) {
+    gamevalues::lua_pushlstring.trampoline(L, str, strlen(str));
+}
 
 }  // namespace spiral::lua
