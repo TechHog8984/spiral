@@ -15,21 +15,17 @@
 
 namespace spiral::hooks {
 
-// bool rawlua_new_called = false;
+bool newstate_called = false;
 bool done_manual_init = false;
 
 void hooked_luau_execute(uint8_t *L) {
     /*
-        if luau_execute has been called BEFORE RawLua::new, then we injected
+        if luau_execute has been called BEFORE Vortex_newstate, then we injected
         into the game after a state has already been created,
         so we need to queue an initialiation job manually.
     */
-    // if (!rawlua_new_called && !done_manual_init) {
-    //     done_manual_init = true;
-    //     jobs::queueInitializeState();
-    // }
-
-    if (!done_manual_init) {
+    if (!newstate_called && !done_manual_init) {
+        puts("[spiral] doing manual init...");
         done_manual_init = true;
         jobs::queueInitializeState();
     }
@@ -87,24 +83,20 @@ void hooked_luau_execute(uint8_t *L) {
 
 void hooked_lua_close(uint8_t *L) {
     uint8_t *main = gamevalues::lua_mainthread.trampoline(L);
-    if (execution::game_state && main == execution::game_state) {
+    if (execution::game_state && main == execution::game_state)
         execution::onGameStateClose();
-        // TODO: probably don't do this. probably hook the function that calls
-        // lua_newstate
-        jobs::queueInitializeState();
-    }
 
     gamevalues::lua_close.trampoline(L);
 }
 
-// int64_t *hooked_RawLua__new(void) {
-//     rawlua_new_called = true;
+void *hooked_Vortex_newstate(void) {
+    newstate_called = true;
 
-//     auto result = gamevalues::RawLua__new.trampoline();
+    auto result = gamevalues::Vortex_newstate.trampoline();
 
-//     jobs::queueInitializeState();
+    jobs::queueInitializeState();
 
-//     return result;
-// }
+    return result;
+}
 
 }  // namespace spiral::hooks

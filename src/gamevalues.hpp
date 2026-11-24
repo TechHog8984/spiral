@@ -394,13 +394,22 @@ inline GameValue<lua_CFunction> luaB_print{
         "8b 04 25 28 00 00 00 48 89 44 24 18 31 c0",
     .has_pattern = true};
 
+typedef void *(*Vortex_newstate_t)(void);
+inline GameValue<Vortex_newstate_t> Vortex_newstate{
+    /*
+        calls lua_newstate
+    */
+    .name = "Vortex_newstate",
+    .offset = 0x6f833a0,
+    .hook = hooks::hooked_Vortex_newstate};
+
 inline auto game_values = std::tie(
     luau_load, luau_compile, luau_execute, lua_mainthread, lua_newthread,
     lua_close, lua_tolstring, luaL_tolstring, lua_settop, lua_gettop, lua_pcall,
     lua_pushvalue, lua_pushcclosurek, lua_pushlstring, lua_createtable,
     lua_rawsetfield, lua_rawseti, lua_rawget, lua_getfield, lua_setreadonly,
     lua_setmetatable, lua_replace, lua_setsafeenv, lua_objlen, lua_type,
-    luaA_toobject, luaB_print);
+    luaA_toobject, luaB_print, Vortex_newstate);
 
 bool setup();
 

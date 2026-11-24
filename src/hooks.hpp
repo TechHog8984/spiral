@@ -14,5 +14,6 @@ namespace spiral::hooks {
 
 void hooked_luau_execute(uint8_t *L);
 void hooked_lua_close(uint8_t *L);
+void *hooked_Vortex_newstate(void);
 
 }  // namespace spiral::hooks
