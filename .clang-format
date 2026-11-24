@@ -7,3 +7,4 @@ PointerAlignment: Right
 FixNamespaceComments: true
 ShortNamespaceLines: 0
 BreakStringLiterals: false
+MaxEmptyLinesToKeep: 2

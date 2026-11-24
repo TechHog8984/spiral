@@ -43,10 +43,25 @@ enum lua_Type {
     LUA_TDEADKEY,
 };
 
+// clang-format off
+
+#define lua_isnil(L, n) (gamevalues::lua_type.trampoline(L, (n)) == LUA_TNIL)
+#define lua_istable(L, n) (gamevalues::lua_type.trampoline(L, (n)) == LUA_TTABLE)
+
+#define luaL_error(L, fmt, ...) gamevalues::luaL_errorL.trampoline(L, fmt, ##__VA_ARGS__)
+
+// from currfuncname (has string "__namecall")
+#define luastate_namecall(L) *(uint64_t*)(L + 0x70)
+#define getstr(ts) &((char*)ts)[0x18]
+
+// clang-format on
+
 namespace spiral::lua {
 
 int lua_ref(uint8_t *L, int idx);
 // NOTE: doesn't push nil
 void lua_pushstring(uint8_t *L, const char *str);
+
+int luaL_checkboolean(uint8_t *L, int narg);
 
 }  // namespace spiral::lua

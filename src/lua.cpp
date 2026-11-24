@@ -37,4 +37,10 @@ void lua_pushstring(uint8_t *L, const char *str) {
     gamevalues::lua_pushlstring.trampoline(L, str, strlen(str));
 }
 
+int luaL_checkboolean(uint8_t* L, int narg)
+{
+    gamevalues::luaL_checktype.trampoline(L, narg, LUA_TBOOLEAN);
+    return gamevalues::lua_toboolean.trampoline(L, narg);
+}
+
 }  // namespace spiral::lua

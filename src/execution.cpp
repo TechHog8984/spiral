@@ -57,8 +57,7 @@ void onGameStateClose() {
     puts("[spiral::execution.onGameStateClose] cleaning up...");
     // TODO: cleanup old state
     // there isn't anything to do rn because all we'd do is unref but the
-    // state is (if Vortex is doing things right which I imagine they are)
-    // being closed anyway
+    // state is being closed anyway
     game_state = nullptr;
     puts("[spiral::execution.onGameStateClose] clean up finished.");
 }
