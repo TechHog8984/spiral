@@ -92,6 +92,8 @@ void hooked_lua_close(uint8_t *L) {
 void *hooked_Vortex_newstate(void) {
     newstate_called = true;
 
+    // TODO: it looks like this function gets called when the user leaves the game... why?
+
     auto result = gamevalues::Vortex_newstate.trampoline();
 
     jobs::queueInitializeState();
