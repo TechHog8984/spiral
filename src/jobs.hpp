@@ -15,7 +15,7 @@
 namespace spiral::jobs {
 
 struct Job {
-    enum { InitializeState, ExecuteScript } tag;
+    enum { InitializeState, ExecuteScript, LuauLoadCapture } tag;
 
     std::variant<std::monostate, int, std::string> value;
 };

@@ -6,8 +6,6 @@
     See the GPLv3 LICENSE file.
 */
 
-#pragma once
-
 #include "application.hpp"
 
 #include <fcntl.h>

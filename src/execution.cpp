@@ -35,9 +35,10 @@ void initializeState(uint8_t *game_state_in) {
         "[spiral::execution.initializeState] main state: %p, spiral state: %p\n",
         game_state, spiral_state);
 
-    // luaL_sandboxthread
     {
         auto L = spiral_state;
+
+        // luaL_sandboxthread
         gamevalues::lua_createtable.trampoline(L, 0, 0);
         gamevalues::lua_createtable.trampoline(L, 0, 0);
         gamevalues::lua_pushvalue.trampoline(L, LUA_GLOBALSINDEX);
@@ -47,6 +48,7 @@ void initializeState(uint8_t *game_state_in) {
         gamevalues::lua_replace.trampoline(L, LUA_GLOBALSINDEX);
         // gamevalues::lua_setsafeenv.trampoline(L, LUA_GLOBALSINDEX, 1);
     }
+
 
     environment::apply(spiral_state);
 

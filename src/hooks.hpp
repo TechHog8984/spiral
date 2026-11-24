@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace spiral::hooks {
@@ -15,5 +16,7 @@ namespace spiral::hooks {
 void hooked_luau_execute(uint8_t *L);
 void hooked_lua_close(uint8_t *L);
 void *hooked_Vortex_newstate(void);
+int32_t hooked_luau_load(uint8_t *L, const char *chunkname, const char *data,
+                         size_t size, int32_t env);
 
 }  // namespace spiral::hooks

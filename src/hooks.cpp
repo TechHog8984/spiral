@@ -7,6 +7,7 @@
 */
 
 #include <cstdint>
+#include <fstream>
 
 #include "execution.hpp"
 #include "gamevalues.hpp"
@@ -70,6 +71,19 @@ void hooked_luau_execute(uint8_t *L) {
                         // std::string?
                         jobs::queueJob(job);
                     break;
+                case jobs::Job::LuauLoadCapture: {
+                    static size_t index = 0;
+
+                    auto &bytecode = std::get<std::string>(job.value);
+
+                    char name[256];
+                    snprintf(name, 256, "/tmp/spiral/script%zu.bin", index++);
+                    std::ofstream f(name, std::ios_base::binary);
+
+                    f << bytecode;
+                    f.close();
+                    break;
+                }
             }
 
             job_queue.pop();
@@ -92,11 +106,24 @@ void hooked_lua_close(uint8_t *L) {
 void *hooked_Vortex_newstate(void) {
     newstate_called = true;
 
-    // TODO: it looks like this function gets called when the user leaves the game... why?
+    // TODO: it looks like this function gets called when the user leaves the
+    // game... why?
 
     auto result = gamevalues::Vortex_newstate.trampoline();
 
     jobs::queueInitializeState();
+
+    return result;
+}
+
+int32_t hooked_luau_load(uint8_t *L, const char *chunkname, const char *data,
+                         size_t size, int32_t env) {
+    int32_t result =
+        gamevalues::luau_load.trampoline(L, chunkname, data, size, env);
+
+    jobs::Job job{.tag = jobs::Job::LuauLoadCapture,
+                  .value = std::string(data, size)};
+    jobs::queueJob(job);
 
     return result;
 }

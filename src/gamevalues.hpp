@@ -8,7 +8,7 @@
 
 #pragma once
 
-// GAME VERSION: 0.10.2
+// GAME VERSION: 0.10.3
 // LUAU VERSION: ??? AT LEAST 0.738
 // DON'T FORGET TO UPDATE lua.hpp
 
@@ -49,7 +49,8 @@ inline GameValue<luau_load_t> luau_load{
        got %d)" string, then just follow the RunContext stuff
     */
     .name = "luau_load",
-    .offset = 0x92eb7d0};
+    .offset = 0x9322550,
+    .hook = hooks::hooked_luau_load};
 typedef char *(*luau_compile_t)(const char *source, size_t size,
                                 uint8_t *options, size_t *outsize);
 inline GameValue<luau_compile_t> luau_compile{
@@ -60,16 +61,58 @@ inline GameValue<luau_compile_t> luau_compile{
         Luau::compile's only callsite is luau_compile
     */
     .name = "luau_compile",
-    .offset = 0x92ee710};
+    .offset = 0x9325490};
 typedef void (*luau_execute_t)(uint8_t *L);
 inline GameValue<luau_execute_t> luau_execute{
+    // clang-format off
     /*
         find from coroutine.resume
         "too many arguments to resume" string -> lua_resume -> tailcall (which I
         think is supposed to be resume_continue) -> luau_execute
+
+        OR
+
+        performcall looks like this (note the "C stack overflow" string and FFlag::LuauFastpcall references):
+        void* performcall(char* arg1, int64_t* arg2, int32_t arg3)
+
+        {
+            int64_t rbx = (int64_t)arg3;
+            int16_t rax_1 = *(uint16_t*)(arg1 + 0x50) + 1;
+            *(uint16_t*)(arg1 + 0x50) = rax_1;
+
+            if (rax_1 == 0xc8)
+            {
+                luaG_runerrorL(arg1, "C stack overflow", 0);
+            }
+
+            ...
+            *(uint32_t*)((char*)rax_5 + 0x2c) |= 1;
+            ...
+            arg1[5] = 1;
+
+            if (arg1[1] & 4)
+                luaC_barrierback(arg1, arg1, &arg1[0x68]);
+
+            int64_t rsi_1 = 0;
+
+            if (FFlag::LuauFastpcall)
+                rsi_1 = *(uint64_t*)(arg1 + 0x20) - 0x30 - *(uint64_t*)(arg1 + 0x40);
+
+            luau_execute(arg1);
+            // ^ luau_execute HERE
+            char rax_7 = rax_6;
+
+            if (FFlag::LuauFastpcall)
+            {
+                resume_continue(arg1, rsi_1);
+                // ^ resume_continue also calls 
+                rax_7 = rax_6;
+            }
+            ...
     */
+    // clang-format on
     .name = "luau_execute",
-    .offset = 0x92e5cb0,
+    .offset = 0x931ca30,
     .hook = hooks::hooked_luau_execute};
 
 
@@ -80,14 +123,14 @@ inline GameValue<lua_mainthread_t> lua_mainthread{
         otherwise just look above lua_absindex which is above lua_gettop
     */
     .name = "lua_mainthread",
-    .offset = 0x92b7c30};
+    .offset = 0x92ee9b0};
 typedef uint8_t *(*lua_newthread_t)(uint8_t *L);
 inline GameValue<lua_newthread_t> lua_newthread{
     /*
         coroutine.create ("isyieldable" string -> co_funcs -> cocreate)
     */
     .name = "lua_newthread",
-    .offset = 0x92b9f80};
+    .offset = 0x92f0d00};
 
 typedef void (*lua_close_t)(uint8_t *L);
 inline GameValue<lua_close_t> lua_close{
@@ -99,7 +142,7 @@ inline GameValue<lua_close_t> lua_close{
             and the smaller is lua_close
     */
     .name = "lua_close",
-    .offset = 0x92ccfa0,
+    .offset = 0x9303d20,
     .hook = hooks::hooked_lua_close};
 
 
@@ -134,14 +177,14 @@ inline GameValue<luaL_tolstring_t> luaL_tolstring{/*
                                                       "%s: 0x%016llx" string
                                                   */
                                                   .name = "luaL_tolstring",
-                                                  .offset = 0x92bd490};
+                                                  .offset = 0x92f4210};
 
 typedef void (*luaL_errorL_t)(uint8_t *L, const char *fmt, ...);
 inline GameValue<luaL_errorL_t> luaL_errorL{/*
                                                 luaL_checkany
                                             */
                                             .name = "luaL_errorL",
-                                            .offset = 0x566b90};
+                                            .offset = 0x92f3170};
 
 typedef void (*luaL_checkany_t)(uint8_t *L, int narg);
 inline GameValue<luaL_checkany_t> luaL_checkany{
@@ -151,14 +194,14 @@ inline GameValue<luaL_checkany_t> luaL_checkany{
         "missing argument #%d" string
     */
     .name = "luaL_checkany",
-    .offset = 0x92bc7b0};
+    .offset = 0x92f3530};
 typedef void (*luaL_checktype_t)(uint8_t *L, int narg, int t);
 inline GameValue<luaL_checktype_t> luaL_checktype{
     /*
         table.foreachi ("foreachi" string -> tab_funcs -> tforeachi)
     */
     .name = "luaL_checktype",
-    .offset = 0x92bc780};
+    .offset = 0x92f3500};
 
 
 typedef void (*lua_settop_t)(uint8_t *L, int idx);
@@ -166,11 +209,12 @@ inline GameValue<lua_settop_t> lua_settop{/*
                                               see lua_createtable
                                           */
                                           .name = "lua_settop",
-                                          .offset = 0x92ba050};
+                                          .offset = 0x92f0dd0};
 typedef int (*lua_gettop_t)(uint8_t *L);
 inline GameValue<lua_gettop_t> lua_gettop{
     /*
-        above lua_settop
+        usually it's around lua_mainthread and lua_absindex or something like
+       that. luaL_callmeta also calls it.
     */
     .name = "lua_gettop",
 
@@ -195,17 +239,19 @@ inline GameValue<lua_gettop_t> lua_gettop{
         lua_call(arg1, 1, 1);
         return 1;
     }
+
+    OR just tforeachi
 */
 
 typedef int (*lua_pcall_t)(uint8_t *L, int nargs, int nresults, int errfunc);
 inline GameValue<lua_pcall_t> lua_pcall{
     /*
-        the function lua_call calls above the arg3 == -1 check is 'func1'
-        'func1' has a wrapper f_call:
-        int64_t f_call(char* arg1, int64_t* arg2)
+        the function that lua_call calls above the arg3 == -1 check is
+       performcall performcall has a wrapper f_call: int64_t f_call(char* arg1,
+       int64_t* arg2)
         {
             return sub_92bf530(arg1, *(uint64_t*)arg2, arg2[1]);
-            //     ^^ func1
+            //     ^^ performcall
         }
 
         lua_pcall uses f_call like this:
@@ -215,7 +261,7 @@ inline GameValue<lua_pcall_t> lua_pcall{
         so outer function of above is lua_pcall
     */
     .name = "lua_pcall",
-    .offset = 0x92bb0d0};
+    .offset = 0x92f1e50};
 
 
 typedef void (*lua_pushvalue_t)(uint8_t *L, int idx);
@@ -226,7 +272,7 @@ inline GameValue<lua_pushvalue_t> lua_pushvalue{
             ...
     */
     .name = "lua_pushvalue",
-    .offset = 0x92ba130};
+    .offset = 0x92f0eb0};
 
 typedef void (*lua_pushnil_t)(uint8_t *L);
 inline GameValue<lua_pushnil_t> lua_pushnil{
@@ -234,7 +280,7 @@ inline GameValue<lua_pushnil_t> lua_pushnil{
         coroutine.running ("isyieldable" string -> co_funcs -> corunning)
     */
     .name = "lua_pushnil",
-    .offset = 0x92c5350};
+    .offset = 0x92f10b0};
 
 typedef void (*lua_xmove_t)(uint8_t *from, uint8_t *to, int n);
 inline GameValue<lua_xmove_t> lua_xmove{
@@ -242,7 +288,7 @@ inline GameValue<lua_xmove_t> lua_xmove{
         coroutine.close ("isyieldable" string -> co_funcs -> coclose)
     */
     .name = "lua_xmove",
-    .offset = 0x92b9db0};
+    .offset = 0x92f0b30};
 
 
 typedef void (*lua_pushboolean_t)(uint8_t *L, int b);
@@ -251,7 +297,7 @@ inline GameValue<lua_pushboolean_t> lua_pushboolean{
         table.isfrozen ("foreachi" string -> tab_funcs -> tisfrozen)
     */
     .name = "lua_pushboolean",
-    .offset = 0x92ba730};
+    .offset = 0x92f14b0};
 
 typedef void (*lua_pushcclosurek_t)(uint8_t *L, lua_CFunction fn,
                                     const char *debugname, int nup,
@@ -260,14 +306,14 @@ inline GameValue<lua_pushcclosurek_t> lua_pushcclosurek{/*
                                                             see lua_replace
                                                         */
                                                         .name = "lua_cclosurek",
-                                                        .offset = 0x92bb240};
+                                                        .offset = 0x92f1fc0};
 
 typedef void (*lua_pushlstring_t)(uint8_t *L, const char *s, size_t len);
 inline GameValue<lua_pushlstring_t> lua_pushlstring{/*
                                                         see lua_createtable
                                                     */
                                                     .name = "lua_pushlstring",
-                                                    .offset = 0x92ba620};
+                                                    .offset = 0x92f13a0};
 
 typedef void (*lua_createtable_t)(uint8_t *L, int narray, int nrec);
 inline GameValue<lua_createtable_t> lua_createtable{
@@ -302,16 +348,18 @@ inline GameValue<lua_createtable_t> lua_createtable{
         ...
     */
     .name = "lua_createtable",
-    .offset = 0x92bacc0};
+    .offset = 0x92f1a40};
 
 
 typedef void (*lua_rawsetfield_t)(uint8_t *L, int idx, const char *k);
 inline GameValue<lua_rawsetfield_t> lua_rawsetfield{
     /*
-        below lua_setfield (idk how I found lua_setfield sorry)
+        find lua_setfield from luaL_register
+        lua_rawsetfield is below lua_setfield and calls both luaS_newlstr and
+       luaH_setstr
     */
     .name = "lua_rawsetfield",
-    .offset = 0x92b9380};
+    .offset = 0x92f0100};
 typedef void (*lua_rawseti_t)(uint8_t *L, int idx, int n);
 inline GameValue<lua_rawseti_t> lua_rawseti{
     /*
@@ -342,7 +390,7 @@ inline GameValue<lua_getfield_t> lua_getfield{/*
                                                   see lua_createtable
                                               */
                                               .name = "lua_getfield",
-                                              .offset = 0x92ba850};
+                                              .offset = 0x92f15d0};
 
 
 typedef int (*lua_getreadonly_t)(uint8_t *L, int objindex);
@@ -351,7 +399,7 @@ inline GameValue<lua_getreadonly_t> lua_getreadonly{
         table.isfrozen ("foreachi" string -> tab_funcs -> tisfrozen)
     */
     .name = "lua_getreadonly",
-    .offset = 0x92b9140};
+    .offset = 0x92efec0};
 typedef void (*lua_setreadonly_t)(uint8_t *L, int objindex, int enabled);
 inline GameValue<lua_setreadonly_t> lua_setreadonly{
     /*
@@ -365,7 +413,7 @@ inline GameValue<lua_setreadonly_t> lua_setreadonly{
         return 1;
     */
     .name = "lua_setreadonly",
-    .offset = 0x92b90d0};
+    .offset = 0x92efe50};
 
 typedef int (*lua_getmetatable_t)(uint8_t *L, int objindex);
 inline GameValue<lua_getmetatable_t> lua_getmetatable{
@@ -373,16 +421,18 @@ inline GameValue<lua_getmetatable_t> lua_getmetatable{
         luaL_getmetafield from luaL_callmeta (see lua_gettop)
     */
     .name = "lua_getmetatable",
-    .offset = 0x92bad80};
+    .offset = 0x92f1b00};
 typedef int (*lua_setmetatable_t)(uint8_t *L, int objindex);
 inline GameValue<lua_setmetatable_t> lua_setmetatable{
     /*
         2 below lua_rawseti
         double check since it gets called after lua_rawsetfield(L, -2, "__mode")
        in places
+
+       also appears in luaopen_vector (see lua_setreadonly)
     */
     .name = "lua_setmetatable",
-    .offset = 0x92b9710};
+    .offset = 0x92f0490};
 
 
 typedef void (*lua_replace_t)(uint8_t *L, int idx);
@@ -430,7 +480,7 @@ inline GameValue<lua_setsafeenv_t> lua_setsafeenv{/*
                                                       just find setfenv
                                                   */
                                                   .name = "lua_setsafeenv",
-                                                  .offset = 0x92b91b0};
+                                                  .offset = 0x92eff30};
 
 typedef int (*lua_objlen_t)(uint8_t *L, int idx);
 inline GameValue<lua_objlen_t> lua_objlen{
@@ -438,21 +488,21 @@ inline GameValue<lua_objlen_t> lua_objlen{
         table.foreachi ("foreachi" string -> tab_funcs -> tforeachi)
     */
     .name = "lua_objlen",
-    .offset = 0x92b89c0};
+    .offset = 0x92ef740};
 
 typedef int (*lua_type_t)(uint8_t *L, int idx);
 inline GameValue<lua_type_t> lua_type{/*
                                           see lua_createtable
                                       */
                                       .name = "lua_type",
-                                      .offset = 0x92b7f60};
+                                      .offset = 0x92eece0};
 
 typedef int (*lua_toboolean_t)(uint8_t *L, int idx);
 inline GameValue<lua_toboolean_t> lua_toboolean{/*
                                                     luaL_tolstring
                                                 */
                                                 .name = "lua_toboolean",
-                                                .offset = 0x92b84f0};
+                                                .offset = 0x92ef270};
 
 typedef char *(*luaA_toobject_t)(uint8_t *L, int idx);
 inline GameValue<luaA_toobject_t> luaA_toobject{
@@ -473,7 +523,7 @@ inline GameValue<luaA_toobject_t> luaA_toobject{
             }
     */
     .name = "luaA_toobject",
-    .offset = 0x92b7a90};
+    .offset = 0x92ee810};
 
 
 inline GameValue<lua_CFunction> luaB_print{
@@ -497,7 +547,7 @@ inline GameValue<Vortex_newstate_t> Vortex_newstate{
         calls lua_newstate
     */
     .name = "Vortex_newstate",
-    .offset = 0x6f833a0,
+    .offset = 0x6f92660,
     .hook = hooks::hooked_Vortex_newstate};
 
 // clang-format off

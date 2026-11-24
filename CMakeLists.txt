@@ -41,6 +41,12 @@ set(INCLUDES
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
+set_target_properties(spiral PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    C_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN YES
+)
+
 target_link_options(${PROJECT_NAME} PRIVATE
   $<$<CONFIG:Release>:-Wl,--exclude-libs,ALL>
 )
