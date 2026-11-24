@@ -22,7 +22,7 @@ bool setup() {
         [&pattern_fails, &hook_fails](auto &...items) {
             (
                 [&]() {
-                    printf("[spiral]   finding %s...\n", items.name);
+                    printf("[spiral]   finding %s by %s...\n", items.name, items.has_pattern ? "pattern" : "offset");
 
                     uintptr_t value = 0;
                     if (items.has_pattern) {

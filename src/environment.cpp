@@ -11,14 +11,13 @@
 #include <cstdio>
 #include <string_view>
 
-#include "application.hpp"
 #include "gamevalues.hpp"
 #include "logging.hpp"
 #include "lua.hpp"
 
 namespace spiral::environment {
 
-inline void push(uint8_t *L, const char *name, lua_CFunction func) {
+inline void add(uint8_t *L, const char *name, lua_CFunction func) {
     gamevalues::lua_pushcclosurek.trampoline(L, func, name, 0, NULL);
     gamevalues::lua_rawsetfield.trampoline(L, LUA_GLOBALSINDEX, name);
 }
@@ -26,7 +25,7 @@ inline void push(uint8_t *L, const char *name, lua_CFunction func) {
 void apply(uint8_t *L) {
     gamevalues::lua_setreadonly.trampoline(L, LUA_GLOBALSINDEX, false);
 
-    push(L, "print", [](uint8_t *L) -> int {
+    add(L, "print", [](uint8_t *L) -> int {
         std::string content;
         content.reserve(32);
 

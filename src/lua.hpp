@@ -26,6 +26,8 @@ enum lua_Type {
 
     LUA_TLIGHTUSERDATA,
     LUA_TNUMBER,
+    LUA_TINTEGER,
+
     LUA_TVECTOR,
 
     LUA_TSTRING,

@@ -8,7 +8,8 @@
 
 #pragma once
 
-// GAME VERSION: 0.9.6
+// GAME VERSION: 0.10.2
+// LUAU VERSION: AT LEAST 0.738
 
 #include <cstddef>
 #include <cstdint>
@@ -43,73 +44,58 @@ typedef int32_t (*luau_load_t)(uint8_t *L, const char *chunkname,
                                const char *data, size_t size, int32_t env);
 inline GameValue<luau_load_t> luau_load{
     /*
-        find from "%s: bytecode version mismatch (expected [%d..%d], got %d)"
-        string
+        find loadsafe from "%s: bytecode version mismatch (expected [%d..%d],
+       got %d)" string, then just follow the RunContext stuff
     */
     .name = "luau_load",
-    .pattern =
-        "f3 0f 1e fa 41 57 49 89 ff 41 56 41 "
-        "55 41 54 49 89 f4 55 53 48 89 d3 48 "
-        "81 ec a8 01 00 00 64 48",
-    .has_pattern = true};
+    .offset = 0x92eb7d0};
 typedef char *(*luau_compile_t)(const char *source, size_t size,
                                 uint8_t *options, size_t *outsize);
 inline GameValue<luau_compile_t> luau_compile{
     /*
-    label:
-        luaL_loadbufferenv has code like this:
-        char* rax_3 = luau_compile(data, size, nullptr, &size_1);
-        *(uint64_t*)rax_2 = rax_3;
-        int32_t rax_4 = luau_load(L, name, rax_3, (int32_t)size_1, (env >> 0x1f)
-    + env);
+        ":%d: %s" string -> Luau::compile
+            (big function with std::string stuff and
+            Luau::AstStat::Luau::AstStatBlock::VTable)
+        Luau::compile's only callsite is luau_compile
     */
     .name = "luau_compile",
-    .pattern =
-        "f3 0f 1e fa 41 56 66 0f ef c0 41 55 41 54 49 89 f4 55 48 89 fd 53 48 "
-        "89 cb 48 81 ec 20 01 00 00 64 48 8b 04 25 28 00 00 00 48 89 84 24 18 ",
-    .has_pattern = true};
+    .offset = 0x92ee710};
 typedef void (*luau_execute_t)(uint8_t *L);
 inline GameValue<luau_execute_t> luau_execute{
     /*
         find from coroutine.resume
         "too many arguments to resume" string -> lua_resume -> tailcall (which I
-       think is supposed to be resume_continue) -> luau_execute
+        think is supposed to be resume_continue) -> luau_execute
     */
     .name = "luau_execute",
-    .pattern =
-        "41 57 41 56 41 55 41 54 49 89 fc 55 53 48 81 ec 98 00 00 00 64 48 8b "
-        "04 25 28 00 00 00 48 89 84 24 88 00 00 00",
-    .has_pattern = true,
+    .offset = 0x92e5cb0,
     .hook = hooks::hooked_luau_execute};
 typedef uint8_t *(*lua_mainthread_t)(uint8_t *L);
 inline GameValue<lua_mainthread_t> lua_mainthread{
     /*
-        the pattern should be good enouigh
+        48 8b 47 18 48 8b 80 f8
         otherwise just look above lua_absindex which is above lua_gettop
     */
     .name = "lua_mainthread",
-    .pattern = "f3 0f 1e fa 48 8b 47 18 48 8b 80 f8 0a",
-    .has_pattern = true};
+    .offset = 0x92b7c30};
 typedef uint8_t *(*lua_newthread_t)(uint8_t *L);
 inline GameValue<lua_newthread_t> lua_newthread{
     /*
-        above lua_mainthread
+        coroutine.create ("isyieldable" string -> co_funcs -> cocreate)
     */
     .name = "lua_newthread",
-    .pattern =
-        "f3 0f 1e fa 41 54 55 48 89 fd 48 83 ec 08 48 8b 47 18 48 8b 48 40 48 "
-        "39 48 48 ?? ?? f6 45 01 04",
-    // 73 54 (v0.9.6)
-    .has_pattern = true};
+    .offset = 0x92b9f80};
 typedef void (*lua_close_t)(uint8_t *L);
 inline GameValue<lua_close_t> lua_close{
     /*
-        see
+        find luaM_free_ from luau_load
+        then find close_state from three luaM_free_ calls in a row
+            there are two calls to close_state:
+            the bigger function is lua_newstate
+            and the smaller is lua_close
     */
     .name = "lua_close",
-    .pattern =
-        "f3 0f 1e fa 55 48 8b 47 18 48 8b a8 f8 0a 00 00 48 8b 75 30 48 89 ef",
-    .has_pattern = true,
+    .offset = 0x92ccfa0,
     .hook = hooks::hooked_lua_close};
 typedef const char *(*lua_tolstring_t)(uint8_t *L, int idx, size_t *len);
 inline GameValue<lua_tolstring_t> lua_tolstring{
@@ -138,26 +124,17 @@ inline GameValue<lua_tolstring_t> lua_tolstring{
         "45 85",
     .has_pattern = true};
 typedef const char *(*luaL_tolstring_t)(uint8_t *L, int idx, size_t *len);
-inline GameValue<luaL_tolstring_t> luaL_tolstring{
-    /*
-        "%s: 0x%016llx" string
-    */
-    .name = "luaL_tolstring",
-    .pattern =
-        "f3 0f 1e fa 41 56 41 55 49 89 d5 48 8d 15 f4 ae 07 fa 41 54 41 89 f4",
-    .has_pattern = true};
+inline GameValue<luaL_tolstring_t> luaL_tolstring{/*
+                                                      "%s: 0x%016llx" string
+                                                  */
+                                                  .name = "luaL_tolstring",
+                                                  .offset = 0x92bd490};
 typedef void (*lua_settop_t)(uint8_t *L, int idx);
-inline GameValue<lua_settop_t> lua_settop{
-    /*
-        see lua_createtable
-    */
-    .name = "lua_settop",
-    .pattern =
-        "f3 0f 1e fa 48 8b 4f 08 85 f6 ?? ?? 48 63 d6 48 c1 e2 04 48 03 57 10 "
-        "48 39 d1 ?? ?? 48 89",
-    // 78 44 (v0.9.6)
-    // 73 2a (v0.9.6)
-    .has_pattern = true};
+inline GameValue<lua_settop_t> lua_settop{/*
+                                              see lua_createtable
+                                          */
+                                          .name = "lua_settop",
+                                          .offset = 0x92ba050};
 typedef int (*lua_gettop_t)(uint8_t *L);
 inline GameValue<lua_gettop_t> lua_gettop{
     /*
@@ -167,72 +144,69 @@ inline GameValue<lua_gettop_t> lua_gettop{
 
     .pattern = "f3 0f 1e fa 48 8b 47 08 48 2b 47 10 48 c1 f8 04",
     .has_pattern = true};
+
+/* HOW TO FIND lua_call
+    find luaL_callmeta from luaL_tolstring:
+    void* luaL_tolstring(char* L, int32_t idx, uint64_t* len)
+
+    {
+        ...
+        rax_2 = luaL_callmeta(L, idx, "__tostring");
+
+        if (!rax_2)
+        {
+            ...
+
+    find lua_call from luaL_callmeta:
+    ...
+        lua_pushvalue(arg1, rbp);
+        lua_call(arg1, 1, 1);
+        return 1;
+    }
+*/
+
 typedef int (*lua_pcall_t)(uint8_t *L, int nargs, int nresults, int errfunc);
 inline GameValue<lua_pcall_t> lua_pcall{
     /*
-        after lua_call
+        the function lua_call calls above the arg3 == -1 check is 'func1'
+        'func1' has a wrapper f_call:
+        int64_t f_call(char* arg1, int64_t* arg2)
+        {
+            return sub_92bf530(arg1, *(uint64_t*)arg2, arg2[1]);
+            //     ^^ func1
+        }
 
-        find lua_call with "_LOADED" string:
-            if (sub_6a3de80(arg1, rax_1) != 6)
-                lua_settop(arg1, 0xfffffffe)
-                sub_6a3e180(arg1, 0, 0)
-                sub_6a3db10(arg1, "_LOADED")
-                lua_pushvalue(arg1, 0xfffffffe)
-                sub_6a3e520(arg1, rax_1)
+        lua_pcall uses f_call like this:
+        result = luaD_pcall(arg1, f_call, &var_48, rbx, rbp, arg1, r13, r14,
+       r15);
 
-            if (lua_getfield(arg1, 0xffffffff, arg2) == 0)
-                lua_settop(arg1, 0xfffffffe)
-                lua_pushcclosurek(arg1, arg3, 0, 0, 0)
-                sub_6a3db10(arg1, arg2)
-                lua_tolstring(arg1, 0xffffffff, nullptr)
-                // lua_call BELOW
-                lua_call(arg1, 1, 1) // RIGHT HERE
-                // ^ lua_call HERE
-                lua_pushvalue(arg1, 0xffffffff)
-                lua_setfield(arg1, 0xfffffffd, arg2)
+        so outer function of above is lua_pcall
     */
     .name = "lua_pcall",
-    .pattern =
-        "f3 0f 1e fa 55 4c 63 ce 48 89 fd 53 89 d3 48 83 ec 28 64 48 8b 04 25 "
-        "28 00 00 00 48 89 44 24 18 31 c0 85 c9 ?? ?? 48 8b 57 30 48 8b 47 08",
-    // 75 52 (v0.9.6)
-    .has_pattern = true};
+    .offset = 0x92bb0d0};
 typedef void (*lua_pushvalue_t)(uint8_t *L, int idx);
 inline GameValue<lua_pushvalue_t> lua_pushvalue{
     /*
-        see lua_pcall
-        OR
         int64_t* luaL_findtable(char* arg1, int32_t arg2, int64_t* arg3, int32_t
        arg4) { int64_t* result = arg3; lua_pushvalue(arg1, arg2); char* rbx_1;
             ...
     */
     .name = "lua_pushvalue",
-    .pattern =
-        "f3 0f 1e fa 55 48 63 ee 53 48 89 fb 48 83 ec 08 f6 47 01 04 75 5a 85 "
-        "ed 7e 36 48 8b 43 10 48",
-    .has_pattern = true};
+    .offset = 0x92ba130};
 typedef void (*lua_pushcclosurek_t)(uint8_t *L, lua_CFunction fn,
                                     const char *debugname, int nup,
                                     lua_Continuation cont);
-inline GameValue<lua_pushcclosurek_t> lua_pushcclosurek{
-    /*
-        see lua_replace
-    */
-    .name = "lua_cclosurek",
-    .pattern =
-        "f3 0f 1e fa 41 56 49 89 f6 41 55 4d 89 c5 41 54 49 89 d4 55 48 89 fd "
-        "53 48 8b 47 18 89 cb 48 8b 78 40 48 39 78 48 0f 83 94 00 00 00 f6 45",
-    .has_pattern = true};
+inline GameValue<lua_pushcclosurek_t> lua_pushcclosurek{/*
+                                                            see lua_replace
+                                                        */
+                                                        .name = "lua_cclosurek",
+                                                        .offset = 0x92bb240};
 typedef void (*lua_pushlstring_t)(uint8_t *L, const char *s, size_t len);
-inline GameValue<lua_pushlstring_t> lua_pushlstring{
-    /*
-        see lua_createtable
-    */
-    .name = "lua_pushlstring",
-    .pattern =
-        "f3 0f 1e fa 41 55 41 54 49 89 d4 55 48 89 f5 53 48 89 fb 48 83 ec 08 "
-        "48 8b 47 18 48 8b 48 40 48 39 48 48 73 3b f6 43 01",
-    .has_pattern = true};
+inline GameValue<lua_pushlstring_t> lua_pushlstring{/*
+                                                        see lua_createtable
+                                                    */
+                                                    .name = "lua_pushlstring",
+                                                    .offset = 0x92ba620};
 typedef void (*lua_createtable_t)(uint8_t *L, int narray, int nrec);
 inline GameValue<lua_createtable_t> lua_createtable{
     /*
@@ -266,25 +240,22 @@ inline GameValue<lua_createtable_t> lua_createtable{
         ...
     */
     .name = "lua_createtable",
-    .pattern =
-        "f3 0f 1e fa 41 55 41 54 41 89 d4 55 89 f5 53 48 89 fb 48 83 ec 08 48 "
-        "8b 47 18 48 8b 48 40 48 39 48 48 ?? ?? f6 43 01 04",
-    // 73 3c (v0.9.6)
-    .has_pattern = true};
+    .offset = 0x92bacc0};
 typedef void (*lua_rawsetfield_t)(uint8_t *L, int idx, const char *k);
 inline GameValue<lua_rawsetfield_t> lua_rawsetfield{
     /*
-        see lua_createtable
+        below lua_setfield (idk how I found lua_setfield sorry)
     */
     .name = "lua_rawsetfield",
-    .pattern =
-        "f3 0f 1e fa 41 54 49 89 d4 55 53 48 89 fb 48 83 ec 20 64 48 8b 04 25 "
-        "28 00 00 00 48 89 44 24 18 31 c0 85 f6",
-    .has_pattern = true};
+    .offset = 0x92b9380};
 typedef void (*lua_rawseti_t)(uint8_t *L, int idx, int n);
 inline GameValue<lua_rawseti_t> lua_rawseti{
     /*
-        idk
+        table.insert ("foreachi" string -> tab_funcs -> tinsert)
+
+        tinsert has this at the end:
+        lua_rawseti(L, idx: 1, n: rdx)
+        return 0
     */
     .name = "lua_rawseti",
     .pattern =
@@ -302,37 +273,34 @@ inline GameValue<lua_rawget_t> lua_rawget{
         "ed 7e 46 48 8b 43 10 48 c1 e5 04 48 8b 73",
     .has_pattern = true};
 typedef int (*lua_getfield_t)(uint8_t *L, int idx, const char *k);
-inline GameValue<lua_getfield_t> lua_getfield{
-    /*
-        see lua_createtable
-    */
-    .name = "lua_getfield",
-    .pattern =
-        "f3 0f 1e fa 41 54 49 89 d4 55 48 63 ee 53 48 89 fb 48 83 ec 20 64 48 "
-        "8b 04 25 28 00 00 00 48 89 44 24 18 31 c0 f6 47 01",
-    .has_pattern = true};
+inline GameValue<lua_getfield_t> lua_getfield{/*
+                                                  see lua_createtable
+                                              */
+                                              .name = "lua_getfield",
+                                              .offset = 0x92ba850};
 typedef void (*lua_setreadonly_t)(uint8_t *L, int objindex, int enabled);
 inline GameValue<lua_setreadonly_t> lua_setreadonly{
     /*
-        I think I found setsafeenv by just scrolling up from lua_rawsetfield
-        which leads you to 'luaL_sandbox' (probably not it since it looks like
-       mlua) which calls lua_setreadonly a lot
+        find luaL_register(arg1, "vector", &vectorlib)
+        this function is luaopen_vector
+
+        which has this at the end:
+        lua_setfield(arg1, 0xfffffffe, "__index");
+        lua_setreadonly(arg1, 0xffffffff, 1);
+        lua_settop(arg1, 0xfffffffe);
+        return 1;
     */
     .name = "lua_setreadonly",
-    .pattern =
-        "f3 0f 1e fa 41 89 d0 85 f6 7e 2d 48 8b 47 10 48 63 f6 48 c1 e6 04 48 "
-        "8d 44 30 f0 48 3b 47",
-    .has_pattern = true};
+    .offset = 0x92b90d0};
 typedef int (*lua_setmetatable_t)(uint8_t *L, int objindex);
 inline GameValue<lua_setmetatable_t> lua_setmetatable{
     /*
-        below lua_rawseti
+        2 below lua_rawseti
+        double check since it gets called after lua_rawsetfield(L, -2, "__mode")
+       in places
     */
     .name = "lua_setmetatable",
-    .pattern =
-        "f3 0f 1e fa 55 48 89 fd 85 f6 0f 8e a0 00 00 00 48 8b 47 10 48 63 f6 "
-        "48 8b 57 08 48 8d 0d 4e ae 2a fb 48 c1 e6 04 48 8d 44 30 f0 48 39",
-    .has_pattern = true};
+    .offset = 0x92b9710};
 typedef void (*lua_replace_t)(uint8_t *L, int idx);
 inline GameValue<lua_replace_t> lua_replace{
     /*
@@ -374,31 +342,27 @@ inline GameValue<lua_replace_t> lua_replace{
     .has_pattern = true};
 typedef void (*lua_setsafeenv_t)(uint8_t *L, int objindex, int enabled);
 inline GameValue<lua_setsafeenv_t> lua_setsafeenv{/*
-                                                      below lua_createtable
+                                                      just find setfenv
                                                   */
                                                   .name = "lua_setsafeenv",
-                                                  .offset = 0x6a3e2e0};
+                                                  .offset = 0x92b91b0};
 typedef int (*lua_objlen_t)(uint8_t *L, int idx);
-inline GameValue<lua_objlen_t> lua_objlen{
-    /*
-        idk
-    */
-    .name = "lua_objlen",
-    .pattern =
-        "f3 0f 1e fa 85 f6 7e 58 48 8b 47 10 48 63 f6 48 c1 e6 04 48 8d 44 30 "
-        "f0 48 3b 47 08 72 07 48 8d",
-    .has_pattern = true};
+inline GameValue<lua_objlen_t> lua_objlen{/*
+                                              table.foreachi
+                                          */
+                                          .name = "lua_objlen",
+                                          .offset = 0x92b89c0};
 typedef int (*lua_type_t)(uint8_t *L, int idx);
 inline GameValue<lua_type_t> lua_type{/*
                                           see lua_createtable
                                       */
                                       .name = "lua_type",
-                                      .offset = 0x6a3d0d0};
+                                      .offset = 0x92b7f60};
 
 typedef char *(*luaA_toobject_t)(uint8_t *L, int idx);
 inline GameValue<luaA_toobject_t> luaA_toobject{
-    /* "invalid argument #%d to '%s' (%s expected, got %s)" string
-        leads you to luaL_typerrorL:
+    /* "invalid argument #%d to '%s' (%s expected, got %s)" string ->
+       luaL_typerrorL:
 
         void luaL_typeerrorL(char* arg1, int32_t arg2)
         {
@@ -414,7 +378,7 @@ inline GameValue<luaA_toobject_t> luaA_toobject{
             }
     */
     .name = "luaA_toobject",
-    .offset = 0x6a3c960};
+    .offset = 0x92b7a90};
 
 inline GameValue<lua_CFunction> luaB_print{
     /*
@@ -430,26 +394,13 @@ inline GameValue<lua_CFunction> luaB_print{
         "8b 04 25 28 00 00 00 48 89 44 24 18 31 c0",
     .has_pattern = true};
 
-typedef int64_t *(*RawLua__new_t)(void);
-inline GameValue<RawLua__new_t> RawLua__new{
-    /*
-        find close_state from luaM_free_ calls
-        then lua_newstate from close_state calls
-            there are two calls. the bigger function is lua_newstate
-            and the smaller is lua_close
-        then RawLua::new from lua_newstate calls
-    */
-    .name = "RawLua::new",
-    .offset = 0x57fabf0,
-    .hook = hooks::hooked_RawLua__new};
-
 inline auto game_values = std::tie(
     luau_load, luau_compile, luau_execute, lua_mainthread, lua_newthread,
     lua_close, lua_tolstring, luaL_tolstring, lua_settop, lua_gettop, lua_pcall,
     lua_pushvalue, lua_pushcclosurek, lua_pushlstring, lua_createtable,
     lua_rawsetfield, lua_rawseti, lua_rawget, lua_getfield, lua_setreadonly,
     lua_setmetatable, lua_replace, lua_setsafeenv, lua_objlen, lua_type,
-    luaA_toobject, luaB_print, RawLua__new);
+    luaA_toobject, luaB_print);
 
 bool setup();
 

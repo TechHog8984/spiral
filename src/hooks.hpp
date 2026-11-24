@@ -14,6 +14,5 @@ namespace spiral::hooks {
 
 void hooked_luau_execute(uint8_t *L);
 void hooked_lua_close(uint8_t *L);
-int64_t *hooked_RawLua__new(void);
 
 }  // namespace spiral::hooks
