@@ -18,8 +18,8 @@ echo 'game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 48' > /tmp/spiral/
 
 ## why is it crappy?
 * linux only
-* it needs scripts running in the game
 * no custom functions
 * no ui
-* most functions are found with pattern matching at runtime which is slow
+* (thanks gab) ~~it needs scripts running in the game~~
+* (not really true anymore) ~~most functions are found with pattern matching at runtime which is slow~~
 * (fixed, yay!) ~~if you try to execute a script after leaving a game and joining a new one, it crashes~~
